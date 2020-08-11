@@ -11,7 +11,7 @@ edx %>% filter(rating==3) %>% tally()
 
 n_distinct(edx$movieId)
 
-#Question 4.How many different users are in the edx dataset?
+#Question 4.How many different users are in the edx dataset?.
 
 n_distinct(edx$userId)
 
