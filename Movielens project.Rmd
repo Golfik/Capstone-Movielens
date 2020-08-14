@@ -1,0 +1,35 @@
+---
+output:
+  pdf_document: 
+    toc: yes
+    number_sections: yes
+    highlight: pygments
+  author: "Agata Hemperek"
+  date: "14th of July 2020"
+  title: "Movielens project"
+---
+
+# Introduction
+
+
+## Overview
+
+This report present a summary of **the Movielens project**, which is part of Data Science Professional Certificate led by HarvardX on edX platform. The Movielens project was part of final graded assessments.
+
+In the following sections some parts of code have been highlighted, but for reference full code has been included in the Appendix. 
+This report, as well as a script file, can be found on [GitHub repository](http://alwayspaasingby.com).
+
+## Scope of the project
+
+The scope of this project is to find a way to predict user ratings for a movie, based on chosen set of predictors from provided dataset, using possible machine learning techniques.
+The calculations will be based on GroupLens research lab Movielens 10M dataset, which consists of 10 million ratings on 10 thousand movies, made by 72 thousand users. Each rating has a different set of predictor.
+
+# Method of analysis
+
+
+# Results
+
+
+# Conclusions
+
+# Appendix
