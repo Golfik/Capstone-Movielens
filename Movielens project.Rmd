@@ -1,23 +1,21 @@
 ---
+title: "**Movielens project**"
+subtitle: "**Predicting movie ratings by machine learning modeling**"
 output:
   pdf_document: 
     toc: yes
     number_sections: yes
     highlight: pygments
-  author: "Agata Hemperek"
-  date: "14th of July 2020"
-  title: "Movielens project"
 ---
-
+\pagebreak
 # Introduction
-
 
 ## Overview
 
-This report present a summary of **the Movielens project**, which is part of Data Science Professional Certificate led by HarvardX on edX platform. The Movielens project was part of final graded assessments.
+This report present a summary of **Movielens project**, which is part of Data Science Professional Certificate led by HarvardX on edX platform. The Movielens project was part of final graded assessments.
 
 In the following sections some parts of code have been highlighted, but for reference full code has been included in the Appendix. 
-This report, as well as a script file, can be found on [GitHub repository](http://alwayspaasingby.com).
+This report, as well as a script file, can be found on [GitHub repository](https://github.com/Golfik/Movielens-project).
 
 ## Scope of the project
 
@@ -26,6 +24,57 @@ The calculations will be based on GroupLens research lab Movielens 10M dataset, 
 
 # Method of analysis
 
+## Importing and checking movielens data set
+
+Starting the project I've had to import the Movielens data and create useful data set out of it. As a first step I download the zip file form web and transform the two dat files inside it (movies and ratings) using fread and str_split_fixed functions from data.table and stringr packages (part of tidyverse pack). Transformed data frames are saved to *movies* and *ratings* respectively.
+Both data frames are then joined together by *movieId* to *movielens* data frame that will be used onward. All code for those action was provided in the project description.
+
+After creating *movielens* data set, I inspected it using glimpse function. Our movielens data set consist of 6 parameters:
+
+* userId (integer)
+* movieId (double class)
+* rating (double class)
+* timestamp (integer)
+* title (character)
+* genres (character)
+
+## Choosing the parameters for modeling
+
+Establishing that *rating* is our outcome, I've considered the influence of the rest of the five parameters on the expected outcome. The PCA analysis couldn't be used to help with cumulative variance explanation, as *movielens* dataset is too big for machine calculations possibilities (and another transformation on character parameters would be needed). 
+
+The parameters that have been chosen as primary ones were *userId* and *movieId*. *timestamp* and *title* parameters have been used to create additional parameters in different form (see next section). *genres* parameter has been excluded from the current analysis, but it's influence on the expected outcome (*rating*) has not been dismissed, and might be used in another iteration of this project.
+
+## Additional parameters
+
+Additional two parameters were created and included in *movielens* data set, which we suspect might be influencing the rating gave by users. 
+
+First one is *year_of_release*, indicating in which year the movie has been released. It has been created by taking the years from *title* parameter, as those years are included at the end of character string in the brackets. It has been transformed into double-class using str_sub function from stringr package, and as.numeric function. 
+
+Another support parameter created to *movielens* data frame is *rateday*, which is the day of the week the rating has been done (assuming it's happening on the same day the movie is watched), in scale 1-7 where 1 is Monday. This parameter is included based on assumption that users rate differently if they are relaxed over the weekend, or it's middle of stressful week. *rateday* has been added to movielens data set as transformation of *timestamp* parameter by as_datetime and wday functions from lubridate package.
+
+```{r eval=FALSE}
+movielens <- mutate(movielens, 
+                    year_of_release = as.numeric(str_sub(title, start=-5, end=-2)),
+                    rateday=wday(as_datetime(timestamp),week_start = 1))
+
+```
+
+## Creating training and test sets
+
+For the modeling purposes I've created a training (*edx*) and test (*validation*) sets out of movielens data frame. Test set *validation* is consisting of 10% of original *movielens* set. This part was done with createDataPartition function from the caret package. Code for creating *edx* and *validations* sets was provided as part of project description. 
+
+As test set *validation* has to be used only for final check of prepared prediction model, I've created additional test and training sub-sets of training set *edx*, with same approach as used before, thus creating *edx_train* and *edx_test* variables. The test set was created using 50% of *edx* data set. From now on, until final prediction model is created, all trainigs and tests would be done on those data frames.
+
+In both cases I've made sure that *userId*, *movieId*, *year_of_release* and *rateday* appearing in test sets are also in training sets. This has been done by using semi_join function on those two sets, by this selected parameters.
+
+## Deciding on modelling approach
+
+## Naive model
+
+## Regularized model
+
+## Results on edX test set
+
 
 # Results
 
@@ -33,3 +82,7 @@ The calculations will be based on GroupLens research lab Movielens 10M dataset, 
 # Conclusions
 
 # Appendix
+
+## Session info
+
+## Full code
