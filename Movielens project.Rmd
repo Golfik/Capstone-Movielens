@@ -21,6 +21,7 @@ This report, as well as a script file, can be found on [GitHub repository](https
 
 The scope of this project is to find a way to predict user ratings for a movie, based on chosen set of predictors from provided dataset, using possible machine learning techniques.
 The calculations will be based on GroupLens research lab Movielens 10M dataset, which consists of 10 million ratings on 10 thousand movies, made by 72 thousand users. Each rating has a different set of predictor.
+The goal of the project is to find a prediction method that would generate residual mean squared error (RMSE) lower than 0.86490.
 
 # Method of analysis
 
@@ -42,7 +43,7 @@ After creating *movielens* data set, I inspected it using glimpse function. Our 
 
 Establishing that *rating* is our outcome, I've considered the influence of the rest of the five parameters on the expected outcome. The PCA analysis couldn't be used to help with cumulative variance explanation, as *movielens* dataset is too big for machine calculations possibilities (and another transformation on character parameters would be needed). 
 
-The parameters that have been chosen as primary ones were *userId* and *movieId*. *timestamp* and *title* parameters have been used to create additional parameters in different form (see next section). *genres* parameter has been excluded from the current analysis, but it's influence on the expected outcome (*rating*) has not been dismissed, and might be used in another iteration of this project.
+The parameters that have been chosen as primary ones were *userId*, *movieId* and *genres*. *timestamp* and *title* parameters have been used to create additional parameters in different form (see next section).
 
 ## Additional parameters
 
@@ -65,11 +66,29 @@ For the modeling purposes I've created a training (*edx*) and test (*validation*
 
 As test set *validation* has to be used only for final check of prepared prediction model, I've created additional test and training sub-sets of training set *edx*, with same approach as used before, thus creating *edx_train* and *edx_test* variables. The test set was created using 50% of *edx* data set. From now on, until final prediction model is created, all trainigs and tests would be done on those data frames.
 
-In both cases I've made sure that *userId*, *movieId*, *year_of_release* and *rateday* appearing in test sets are also in training sets. This has been done by using semi_join function on those two sets, by this selected parameters.
+In both cases I've made sure that *userId*, *movieId*, *year_of_release*, *rateday* and *genres* appearing in test sets are also in training sets. This has been done by using semi_join function on those two sets, by this selected parameters.
 
-## Deciding on modelling approach
+## Deciding on modeling approach
+
+Given the size of dataset, more complex algorithms for predicting *ratings* outcome, like random forest, K-nearest neighbors (KNN) or any regression forms couldn't be used (train function was taking too much time on given machine to calculate). I've decided to follow step by step Naive Bayes approach on all 5 chosen predictors. This could be described by following equation
+
+\begin{center} Y~i,u,y,d,g~=$\mu$+b~i~+b~u~+b~y~+b~d~+b~g~+$\epsilon$~i,u,y,d,g~ \end{center}
+
+
+where:
+
+* Y~i,u,y,d,g~ - predicted movie rating
+* $\mu$ - actual rating for all movies
+* b~i~ - *movieId* effect
+* b~u~ - *userId* effect
+* b~y~ - *year_of_release* effect
+* b~d~ - *rateday* effect
+* b~g~ - *genres* effect
+* $\epsilon$~i,u,y,d,g~ - independent errors
 
 ## Naive model
+
+
 
 ## Regularized model
 
@@ -77,6 +96,8 @@ In both cases I've made sure that *userId*, *movieId*, *year_of_release* and *ra
 
 
 # Results
+
+0.864257087288868
 
 
 # Conclusions
