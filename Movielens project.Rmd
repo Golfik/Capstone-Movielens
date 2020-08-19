@@ -57,7 +57,6 @@ Another support parameter created to *movielens* data frame is *rateday*, which 
 movielens <- mutate(movielens, 
                     year_of_release = as.numeric(str_sub(title, start=-5, end=-2)),
                     rateday=wday(as_datetime(timestamp),week_start = 1))
-
 ```
 
 ## Creating training and test sets
@@ -70,9 +69,9 @@ In both cases I've made sure that *userId*, *movieId*, *year_of_release*, *rated
 
 ## Deciding on modeling approach
 
-Given the size of dataset, more complex algorithms for predicting *ratings* outcome, like random forest, K-nearest neighbors (KNN) or any regression forms couldn't be used (train function was taking too much time on given machine to calculate). I've decided to follow step by step Naive Bayes approach on all 5 chosen predictors. This could be described by following equation
+Given the size of dataset, more complex algorithms for predicting *ratings* outcome, like random forest, K-nearest neighbors (KNN) or any regression forms couldn't be used (train function was taking too much time on given machine to calculate). I've decided to follow step by step Naive Bayes approach on all 5 chosen features. This could be described by following equation
 
-\begin{center} Y~i,u,y,d,g~=$\mu$+b~i~+b~u~+b~y~+b~d~+b~g~+$\epsilon$~i,u,y,d,g~ \end{center}
+$$Y_{i,u,y,d,g} =\mu+b_{i} +b_{u}+b_{y}+b_{d}+b_{g}+\epsilon_{i,u,y,d,g}$$
 
 
 where:
@@ -88,17 +87,195 @@ where:
 
 ## Naive model
 
+First step to creating a naive prediction model is to estimate $\mu$. This can be done by assuming it's close to the average of all outcomes (*rating*). Effect of *movieId* feature, as well as *userId*, *year_of_release*, *rateday* and *genres* effect has been calculated one by one as the difference of the predicted rating and all effects calculated before (and the independence error). Therefore the equation for *movieId* effect b~i~ is as follow
 
+$$b_{i}~=Y _{i,u,y,d,g}-\mu-\epsilon_{i,u,y,d,g}$$ 
+
+and equation for *userId* b~u~ effect being
+
+$$b_{u}=Y _{i,u,y,d,g}-\mu-b_{i}-\epsilon_{i,u,y,d,g}$$
+
+and all other effects of b~y~, b~d~ and b~g~ created similarly.
+
+All of those effects are calculated on edx_train train set, with code as followed:
+```{r eval=FALSE}
+mu <- mean(edx_train$rating)
+
+b_i <- edx_train %>% 
+  group_by(movieId) %>% 
+  summarise(b_i = mean(rating-mu))
+
+b_u <- edx_train %>% 
+  left_join(b_i, by="movieId") %>% 
+  group_by(userId) %>% 
+  summarise(b_u=mean(rating-mu-b_i))
+
+b_y <- edx_train %>% 
+  left_join(b_i, by="movieId") %>% 
+  left_join(b_u, by="userId") %>% 
+  group_by(year_of_release) %>% 
+  summarise(b_y=mean(rating-mu-b_i-b_u))
+
+b_d <- edx_train %>% 
+  left_join(b_i, by="movieId") %>% 
+  left_join(b_u, by="userId") %>% 
+  left_join(b_y, by="year_of_release") %>% 
+  group_by(rateday) %>% 
+  summarise(b_d=mean(rating-mu-b_i-b_u-b_y))
+
+b_g <- edx_train %>% 
+  left_join(b_i, by="movieId") %>% 
+  left_join(b_u, by="userId") %>% 
+  left_join(b_y, by="year_of_release") %>% 
+  left_join(b_d, by="rateday") %>%
+  group_by(genres) %>% 
+  summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
+```
+
+The effects calculated that way are then used to calculate predictions on movie rate Y~i,u,y,d,g~. For this purpose, I've created *predictions* function, which will be used through all project, also for final testing on *validations* test set.
+```{r eval=FALSE}
+predictions<- function(x,i,u,y,d,g){
+  x %>% 
+    left_join(i, by="movieId") %>% 
+    left_join(u, by="userId") %>% 
+    left_join(y, by="year_of_release") %>% 
+    left_join(d, by="rateday") %>%
+    left_join(g, by="genres") %>%
+    mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>%
+    pull(pred)
+}
+
+pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
+```
+
+Creating prediction vector, I was able to test out what would be the residual mean squared error (RMSE) of current model. This could be calculated by following 
+
+$$RMSE = \sqrt{\frac{1}{N}\sum_{i,u,y,d,g}(\hat{y}_{i,u,y,d,g} -y_{i,u,y,d,g})^2}$$
+where:
+
+* $y _{i,u,y,d,g~}$ - actual rating for a movie with selected features
+* $\hat{y}_{i,u,y,d,g}$ - predicted rating for a movie with selected features
+
+
+equation, which in this project can be translated to code:
+
+```{r eval=FALSE}
+rmse <- sqrt(mean((pred-edx_test$rating)^2))
+```
+
+The RMSE obtained from naive model, although calculated based on train and test subsets and to proper whole *edx* set, is equal 0.86907, so above 0.86490 threshold required by the project. Therefore current model is not enough, and further modification of it is required. 
 
 ## Regularized model
+
+To make RMSE of the model smaller, all five features were adjusted by separate regularization parameters. Using regularization parameters (named *alpha*, *lambda* *delta*, *kappa* and *omega*) allowed to influence total variability of effect sizes. This can be done by transforming RMSE equation with penalized regression (for controlling variety), with focus on minimizing paramter effect.
+
+For example for $b_{i}$ it would be
+$$\frac{1}{N}\sum_{i,u,y,d,g}(\hat{y}_{i,u,y,d,g}-\mu-b_{i})^2+\lambda\sum_{i}b_{i}^2$$
+transformed into
+$$\hat{b_{i}}(\lambda)=\frac{1}{\lambda+n_{i}}\sum_{u,y,d,g=1}^{n_{i}}(Y_{i,u,y,d,g}-\hat{\mu})$$
+
+### Regularized movie effect
+
+For regularized movie effect ($b_{i}$), regularization has been done with $\alpha$ parameter. The best value of $\alpha$ has been chosen using sapply function on $\alpha$ values from 0:10 (in the code it has been narrowed down for the sake of calculation speed).
+
+Value of $b_{i}$ has been calculated using following code
+```{r eval=FALSE}
+b_i <- edx_train %>% 
+    group_by(movieId) %>% 
+    summarise(b_i = sum(rating-mu)/(n()+alpha))
+```
+and the rest of effects has been calculated using basic naive approach.
+
+The best value of $\alpha$ has been determined as 3.85.
+
+![RMSE vs. Alpha plot](Alpha plot.png)
+
+For this value of $\alpha$ RMSE has been calculated as 0.86881, which is 0.03% improvement from fully naive approach.
+
+### Regularized user effect
+
+For regularized user effect ($b_{u}$), regularization has been done with $\lambda$ parameter. The best value of $\lambda$ has been chosen using sapply function on $\lambda$ values from 0:10 (in the code it has been narrowed down for the sake of calculation speed).
+
+Value of $b_{u}$ has been calculated using following code
+```{r eval=FALSE}
+b_u <- edx_train %>% 
+    left_join(b_i, by="movieId") %>% 
+    group_by(userId) %>% 
+    summarise(b_u=sum(rating-mu-b_i)/(n()+lambda))
+```
+and the rest of effects (besides movie effect $b_{i}$) has been calculated using basic naive approach. Movie effect used for this regularization has been calculated with previously defined $\alpha$ regularization parameter of 3.85.
+
+The best value of $\lambda$ has been determined as 4.8.
+
+![RMSE vs Lambda plot](Lambda plot.png)
+For this value of $\lambda$ RMSE has been calculated as 0.86758, which is 0.17% improvement from fully naive approach.
+
+### Regularized year of movie release effect
+
+For regularized year of movie release effect ($b_{y}$), regularization has been done with $\delta$ parameter. The best value of $\delta$ has been chosen using sapply function on $\delta$ values from 0:50 (in the code it has been narrowed down for the sake of calculation speed).
+
+Value of $b_{y}$ has been calculated using following code
+```{r eval=FALSE}
+b_y <- edx_train %>% 
+    left_join(b_i, by="movieId") %>% 
+    left_join(b_u, by="userId") %>% 
+    group_by(year_of_release) %>% 
+    summarise(b_y=sum(rating-mu-b_i-b_u)/(n()+delta))
+```
+and the rest of effects (besides movie effect $b_{i}$ and user effect $b_{u}$) has been calculated using basic naive approach. Movie effect used for this regularization has been calculated with previously defined $\alpha$ regularization parameter of 3.85, and user effect used with $\lambda$ of 4.8.
+
+The best value of $\delta$ has been determined as 37.
+
+![RMSE vs Delta plot](Delta plot.png)
+For this value of $\delta$ RMSE has been calculated as 0.86758, which is 0.17% improvement from fully naive approach (and not much different from previous step).
+
+### Regularized rating day of the week effect
+
+For regularized rating day of the week effect ($b_{d}$), regularization has been done with $\kappa$ parameter. The best value of $\kappa$ has been chosen using sapply function on $\kappa$ values from 0:1,000,000 (in the code it has been narrowed down for the sake of calculation speed).
+
+Value of $b_{d}$ has been calculated using following code
+```{r eval=FALSE}
+b_d <- edx_train %>% 
+    left_join(b_i, by="movieId") %>% 
+    left_join(b_u, by="userId") %>% 
+    left_join(b_y, by="year_of_release") %>% 
+    group_by(rateday) %>% 
+    summarise(b_d=sum(rating-mu-b_i-b_u-b_y)/(n()+kappa))
+```
+and the rest of effects followed previous approach. Genre effect has been calculated using naive approach, and movie, user and year of movie release effects used for this regularization has been calculated with previously defined $\alpha$ (3.85), $\lambda$ (4.8) and $\delta$ (37) regularization parameters.
+
+The best value of $\kappa$ has been determined as 176,000.
+
+![RMSE vs Kappa plot](Kappa plot.png)
+For this value of $\kappa$ RMSE has been calculated as 0.86758, which is 0.17% improvement from fully naive approach (and only slightly different from two previous steps).
+
+### Regularized movie genre effect
+
+For regularized movie genre effect ($b_{g}$), regularization has been done with $\omega$ parameter. The best value of $\omega$ has been chosen using sapply function on $\omega$ values from 0:100 (in the code it has been narrowed down for the sake of calculation speed).
+
+Value of $b_{g}$ has been calculated using following code
+```{r eval=FALSE}
+b_g <- edx_train %>% 
+    left_join(b_i, by="movieId") %>% 
+    left_join(b_u, by="userId") %>% 
+    left_join(b_y, by="year_of_release") %>%
+    left_join(b_d, by="rateday") %>%
+    group_by(genres) %>% 
+    summarise(b_g=sum(rating-mu-b_i-b_u-b_y)/(n()+omega))
+```
+The rest of effects were calculatedusing their regularized versions. Movie, user, year of movie release and rating day of the week effects were using previously defined for them the best regularization parameters values, with $\alpha$ as 3.85, $\lambda$ as 4.8, $\delta$ as 37 and $\kappa$ as 176,000.
+
+The best value of $\omega$ has been determined as 6.5.
+
+![RMSE vs Omega plot](Omega plot.png)
+For this value of $\omega$ RMSE has been calculated as 0.86758, which is 0.17% improvement from fully naive approach (and only slightly different from last three steps).
 
 ## Results on edX test set
 
 
 # Results
 
-0.864257087288868
-
+0.864257089475457
 
 # Conclusions
 
