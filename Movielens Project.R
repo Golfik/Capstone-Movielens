@@ -85,7 +85,7 @@ edx_test <- edx_test %>%
   semi_join(edx_train, by="genres")
 
 ######################################
-# Model creation - basic naive models
+# Model creation - basic naive model
 ######################################
 
 # Calculating average of all ratings, equal to mu
@@ -125,18 +125,23 @@ b_g <- edx_train %>%
   left_join(b_d, by="rateday") %>%
   group_by(genres) %>% 
   summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
-  
-# Making predictions on average + movie effect + user effect + release year effect + rate day of the week + genres effect, as a function
-pred <- edx_test %>% 
-  left_join(b_i, by="movieId") %>% 
-  left_join(b_u, by="userId") %>% 
-  left_join(b_y, by="year_of_release")  %>% 
-  left_join(b_d, by="rateday") %>%
-  left_join(b_g, by="genres") %>%
-  mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
 
-rmse_basic <- sqrt(mean((pred-edx_test$rating)^2))
-print(c("The RMSE for simple model is:", rmse_basic), quote=FALSE, digits = 5)
+# Creating a predictions function
+predictions<- function(x,i,u,y,d,g){
+  x %>% 
+    left_join(i, by="movieId") %>% 
+    left_join(u, by="userId") %>% 
+    left_join(y, by="year_of_release") %>% 
+    left_join(d, by="rateday") %>%
+    left_join(g, by="genres") %>%
+    mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>%
+    pull(pred)
+}
+  
+# Making predictions on average + movie effect + user effect + release year effect + rate day of the week + genres effect)
+pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
+rmse_naive <- sqrt(mean((pred-edx_test$rating)^2))
+print(c("The RMSE for naive model is:", rmse_naive), quote=FALSE, digits = 5)
 
 ############################################
 # Model creation - regularization parameters
@@ -171,14 +176,7 @@ rmse_reg_a <- sapply(alpha, function(a){
     left_join(b_d, by="rateday") %>%
     group_by(genres) %>% 
     summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
-  pred <- edx_test %>% 
-    left_join(b_i, by="movieId") %>% 
-    left_join(b_u, by="userId") %>% 
-    left_join(b_y, by="year_of_release") %>% 
-    left_join(b_d, by="rateday") %>% 
-    left_join(b_g, by="genres") %>%
-    mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% 
-    pull(pred)
+  pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
   sqrt(mean((pred-edx_test$rating)^2))
 })
 
@@ -218,13 +216,7 @@ b_g <- edx_train %>%
   group_by(genres) %>% 
   summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
 
-pred <- edx_test %>% 
-  left_join(b_i, by="movieId") %>% 
-  left_join(b_u, by="userId") %>% 
-  left_join(b_y, by="year_of_release") %>% 
-  left_join(b_d, by="rateday") %>% 
-  left_join(b_g, by="genres") %>%
-  mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
+pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
 
 rmse_moviereg <- sqrt(mean((pred-edx_test$rating)^2))
 
@@ -255,14 +247,7 @@ rmse_reg_l <- sapply(lambda, function(l){
     left_join(b_d, by="rateday") %>%
     group_by(genres) %>% 
     summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
-  pred <- edx_test %>% 
-    left_join(b_i, by="movieId") %>% 
-    left_join(b_u, by="userId") %>% 
-    left_join(b_y, by="year_of_release")  %>% 
-    left_join(b_d, by="rateday") %>%
-    left_join(b_g, by="genres") %>%
-    mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% 
-    pull(pred)
+  pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
   sqrt(mean((pred-edx_test$rating)^2))
 })
 plot(lambda,rmse_reg_l, xlab ="Regularization parameter for user effect (lambda)", ylab="RMSE")
@@ -295,13 +280,7 @@ b_g <- edx_train %>%
   group_by(genres) %>% 
   summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
 
-pred <- edx_test %>% 
-  left_join(b_i, by="movieId") %>% 
-  left_join(b_u, by="userId") %>% 
-  left_join(b_y, by="year_of_release") %>% 
-  left_join(b_d, by="rateday") %>% 
-  left_join(b_g, by="genres") %>%
-  mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
+pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
 
 rmse_userreg <- sqrt(mean((pred-edx_test$rating)^2))
 print(c("The RMSE for regularized movie and user effect + simple year of release and rating day of the week effect is:", rmse_userreg), quote=FALSE, digits = 5)
@@ -326,13 +305,7 @@ rmse_reg_d <- sapply(delta, function(d){
     left_join(b_d, by="rateday") %>%
     group_by(genres) %>% 
     summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
-  pred <- edx_test %>% 
-    left_join(b_i, by="movieId") %>% 
-    left_join(b_u, by="userId") %>% 
-    left_join(b_y, by="year_of_release")  %>% 
-    left_join(b_d, by="rateday") %>% 
-    left_join(b_g, by="genres") %>%
-    mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
+  pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
   sqrt(mean((pred-edx_test$rating)^2))
 })
 plot(delta,rmse_reg_d, xlab ="Regularization parameter for year of release effect (delta)", ylab="RMSE")
@@ -359,13 +332,7 @@ b_g <- edx_train %>%
   group_by(genres) %>% 
   summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
 
-pred <- edx_test %>% 
-  left_join(b_i, by="movieId") %>% 
-  left_join(b_u, by="userId") %>% 
-  left_join(b_y, by="year_of_release") %>% 
-  left_join(b_d, by="rateday") %>% 
-  left_join(b_g, by="genres") %>%
-  mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
+pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
 
 rmse_yearreg <- sqrt(mean((pred-edx_test$rating)^2))
 print(c("The RMSE for regularized movie, user and year of release effect + simple rating day of the week effect is:", rmse_yearreg), quote=FALSE, digits = 5)
@@ -386,14 +353,7 @@ rmse_reg_k <- sapply(kappa, function(k){
     left_join(b_d, by="rateday") %>%
     group_by(genres) %>% 
     summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
-  pred <- edx_test %>% 
-    left_join(b_i, by="movieId") %>% 
-    left_join(b_u, by="userId") %>% 
-    left_join(b_y, by="year_of_release")  %>% 
-    left_join(b_d, by="rateday") %>% 
-    left_join(b_g, by="genres") %>%
-    mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% 
-    pull(pred)
+  pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
   sqrt(mean((pred-edx_test$rating)^2))
 })
 plot(kappa,rmse_reg_k, xlab ="Regularization parameter for rating day of the week (kappa)", ylab="RMSE")
@@ -415,19 +375,13 @@ b_g <- edx_train %>%
   group_by(genres) %>% 
   summarise(b_g=mean(rating-mu-b_i-b_u-b_y-b_d))
 
-pred <- edx_test %>% 
-  left_join(b_i, by="movieId") %>% 
-  left_join(b_u, by="userId") %>% 
-  left_join(b_y, by="year_of_release") %>% 
-  left_join(b_d, by="rateday") %>% 
-  left_join(b_g, by="genres") %>%
-  mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
+pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
 
 rmse_ratedayreg <- sqrt(mean((pred-edx_test$rating)^2))
 print(c("The RMSE for regularized movie, user, year of release effect and rating day of the week effect is:", rmse_ratedayreg), quote=FALSE, digits = 5)
 
 # Regularizing rating day of the week effect, with finding omega that minimizes rmse. Previously narrowed it down from 0:100 range for speed of calculations purposes.
-omega <- seq(0,10,0.5)
+omega <- seq(0,15,0.5)
 rmse_reg_o <- sapply(omega, function(o){
   b_g <- edx_train %>% 
     left_join(b_i, by="movieId") %>% 
@@ -436,14 +390,7 @@ rmse_reg_o <- sapply(omega, function(o){
     left_join(b_d, by="rateday") %>%
     group_by(genres) %>% 
     summarise(b_g=sum(rating-mu-b_i-b_u-b_y)/(n()+o))
-  pred <- edx_test %>% 
-    left_join(b_i, by="movieId") %>% 
-    left_join(b_u, by="userId") %>% 
-    left_join(b_y, by="year_of_release")  %>% 
-    left_join(b_d, by="rateday") %>% 
-    left_join(b_g, by="genres") %>%
-    mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% 
-    pull(pred)
+  pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
   sqrt(mean((pred-edx_test$rating)^2))
 })
 plot(omega,rmse_reg_o, xlab ="Regularization parameter for movie genres (omega)", ylab="RMSE")
@@ -458,15 +405,9 @@ b_g <- edx_train %>%
   group_by(genres) %>% 
   summarise(b_g=sum(rating-mu-b_i-b_u-b_y)/(n()+omega))
 
-pred <- edx_test %>% 
-  left_join(b_i, by="movieId") %>% 
-  left_join(b_u, by="userId") %>% 
-  left_join(b_y, by="year_of_release") %>% 
-  left_join(b_d, by="rateday") %>% 
-  left_join(b_g, by="genres") %>%
-  mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
+pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
 
-rmse_rategenrereg <- sqrt(mean((pred-edx_test$rating)^2))
+rmse_genrereg <- sqrt(mean((pred-edx_test$rating)^2))
 print(c("The RMSE for regularized movie, user, year of release effect and rating day of the week effect is:", rmse_ratedayreg), quote=FALSE, digits = 5)
 
 #################
@@ -474,17 +415,32 @@ print(c("The RMSE for regularized movie, user, year of release effect and rating
 #################
 
 # Summary of calculated RMSEs
-data.frame("Basic model (movie, user, release year and rating day of the week effect)"=rmse_basic, "Basic model + regularized movie effect"=rmse_moviereg, "Basic model + regularized movie and user effect"=rmse_userreg, "Basic model + regularized movie, user and year of release effect"=rmse_yearreg, "Chosen 4 parameters regularized"=rmse_ratedayreg)
+#data.frame("Basic model (movie, user, release year and rating day of the week effect)"=rmse_basic, "Basic model + regularized movie effect"=rmse_moviereg, "Basic model + regularized movie and user effect"=rmse_userreg, "Basic model + regularized movie, user and year of release effect"=rmse_yearreg, "Chosen 4 parameters regularized"=rmse_ratedayreg)
 
 #####################################
 # Final test of the prediction model 
 #####################################
 
 # Training the model on edx set
-b_i <- edx %>% group_by(movieId) %>% summarise(b_i = sum(rating-mu)/(n()+alpha))
-b_u <- edx %>% left_join(b_i, by="movieId") %>% group_by(userId) %>% summarise(b_u=sum(rating-mu-b_i)/(n()+lambda))
-b_y <- edx %>% left_join(b_i, by="movieId") %>% left_join(b_u, by="userId") %>% group_by(year_of_release) %>% summarise(b_y=sum(rating-mu-b_i-b_u)/(n()+delta))
-b_d <- edx %>% left_join(b_i, by="movieId") %>% left_join(b_u, by="userId") %>% left_join(b_y, by="year_of_release") %>% group_by(rateday) %>% summarise(b_d=sum(rating-mu-b_i-b_u-b_y)/(n()+kappa))
+mu <- mean(edx$rating)
+b_i <- edx %>% 
+  group_by(movieId) %>% 
+  summarise(b_i = sum(rating-mu)/(n()+alpha))
+b_u <- edx %>% 
+  left_join(b_i, by="movieId") %>% 
+  group_by(userId) %>% 
+  summarise(b_u=sum(rating-mu-b_i)/(n()+lambda))
+b_y <- edx %>% 
+  left_join(b_i, by="movieId") %>% 
+  left_join(b_u, by="userId") %>% 
+  group_by(year_of_release) %>% 
+  summarise(b_y=sum(rating-mu-b_i-b_u)/(n()+delta))
+b_d <- edx %>% 
+  left_join(b_i, by="movieId") %>% 
+  left_join(b_u, by="userId") %>% 
+  left_join(b_y, by="year_of_release") %>% 
+  group_by(rateday) %>% 
+  summarise(b_d=sum(rating-mu-b_i-b_u-b_y)/(n()+kappa))
 b_g <- edx %>% 
   left_join(b_i, by="movieId") %>% 
   left_join(b_u, by="userId") %>% 
@@ -493,9 +449,8 @@ b_g <- edx %>%
   group_by(genres) %>% 
   summarise(b_g=sum(rating-mu-b_i-b_u-b_y)/(n()+omega))
 
-
 # Generating predictions on validation set
-pred <- validation %>% left_join(b_i, by="movieId") %>% left_join(b_u, by="userId") %>% left_join(b_y, by="year_of_release") %>% left_join(b_d, by="rateday") %>% left_join(b_g, by="genres") %>% mutate(pred=mu+b_i+b_u+b_y+b_d+b_g) %>% pull(pred)
+pred <- predictions(validation, b_i, b_u, b_y, b_d, b_g)
 
 # Calculating final RMSE
 rmse_val <- sqrt(mean((pred-validation$rating)^2))
