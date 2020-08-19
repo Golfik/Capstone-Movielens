@@ -5,3 +5,5 @@
 *.dat
 Quiz - MovieLens Dataset.R
 *.png
+*.Rproj
+Movielens data frame.R
