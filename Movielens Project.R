@@ -410,13 +410,6 @@ pred <- predictions(edx_test, b_i, b_u, b_y, b_d, b_g)
 rmse_genrereg <- sqrt(mean((pred-edx_test$rating)^2))
 print(c("The RMSE for regularized movie, user, year of release effect and rating day of the week effect is:", rmse_ratedayreg), quote=FALSE, digits = 5)
 
-#################
-# Results summary
-#################
-
-# Summary of calculated RMSEs
-#data.frame("Basic model (movie, user, release year and rating day of the week effect)"=rmse_basic, "Basic model + regularized movie effect"=rmse_moviereg, "Basic model + regularized movie and user effect"=rmse_userreg, "Basic model + regularized movie, user and year of release effect"=rmse_yearreg, "Chosen 4 parameters regularized"=rmse_ratedayreg)
-
 #####################################
 # Final test of the prediction model 
 #####################################
